@@ -1,4 +1,4 @@
-const { getTransporter } = require('../config/email');
+const { getTransporter } = require("../config/email");
 
 const sendEmail = async (subject, text, toEmail = process.env.ADMIN_EMAIL) => {
   try {
@@ -6,7 +6,7 @@ const sendEmail = async (subject, text, toEmail = process.env.ADMIN_EMAIL) => {
     if (!transporter) throw new Error("Email transporter not initialized");
 
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: `"My App" <${process.env.EMAIL_USER}>`, // better formatting
       to: toEmail,
       subject,
       text,
@@ -14,8 +14,10 @@ const sendEmail = async (subject, text, toEmail = process.env.ADMIN_EMAIL) => {
 
     const info = await transporter.sendMail(mailOptions);
     console.log("✉️ Email sent:", info.response);
+    return info;
   } catch (error) {
     console.error("❌ Error sending email:", error.message);
+    throw error; // rethrow so caller knows it failed
   }
 };
 
