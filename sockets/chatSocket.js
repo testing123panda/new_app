@@ -1,11 +1,12 @@
 const Message = require('../models/Message');
 const sendEmail = require('../utils/sendEmail');
 
-// Track users by their role/userId instead of raw socket count
+// Track users by their role/userId
 let connectedUsers = {}; // { userId: socket.id }
 let lastSeen = {};
 let messageReactions = {};
 let typingUsers = {};
+let serverActiveNotified = false; // ✅ new flag
 
 module.exports = (io) => {
   io.on('connection', (socket) => {
@@ -26,17 +27,19 @@ module.exports = (io) => {
 
       console.log(`👤 User "${userId}" connected. Total: ${Object.keys(connectedUsers).length}`);
 
-      lastSeen[socket.id] = new Date().toLocaleTimeString();
+      lastSeen[socket.userId] = new Date().toLocaleTimeString();
       socket.broadcast.emit('userStatus', `${userId} connected`);
       io.emit('lastSeen', lastSeen);
 
+      // 📧 Email when special roles connect
       if (userId === 'f' || userId === 'm') {
         sendEmail('👤 New User Connected', `User with role "${userId}" just connected.`);
       }
 
-      // Send email if server becomes active
-      if (Object.keys(connectedUsers).length <= 2) {
-        sendEmail('🟢 Server Active', `Online users: ${Object.keys(connectedUsers).length}`);
+      // 📧 Email when server becomes active (first user only)
+      if (!serverActiveNotified && Object.keys(connectedUsers).length === 1) {
+        sendEmail('🟢 Server Active', `The server is now active. Online users: 1`);
+        serverActiveNotified = true;
       }
     });
 
@@ -87,8 +90,13 @@ module.exports = (io) => {
 
       io.emit('updateOnlineUsers', Object.keys(connectedUsers).length);
 
-      lastSeen[socket.id] = new Date().toLocaleTimeString();
+      lastSeen[socket.userId] = new Date().toLocaleTimeString();
       io.emit('lastSeen', lastSeen);
+
+      // Reset flag if server becomes empty again
+      if (Object.keys(connectedUsers).length === 0) {
+        serverActiveNotified = false;
+      }
     });
   });
 };
